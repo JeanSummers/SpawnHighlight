@@ -13,6 +13,7 @@ namespace SpawnHighlight
         private Config config;
         private Thread thread;
         private Commands commands;
+        private IBlockAccessor blockAccessor;
         private bool enabled = false;
 
         public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Client;
@@ -47,6 +48,8 @@ namespace SpawnHighlight
 
             enabled = !enabled;
             if (!enabled) return;
+
+            blockAccessor = api.World.GetLockFreeBlockAccessor();
 
             thread = new Thread(RunThread)
             {
@@ -87,7 +90,7 @@ namespace SpawnHighlight
             var py = position.Y;
             var pz = position.Z;
 
-            api.World.BlockAccessor.WalkBlocks(
+            blockAccessor.WalkBlocks(
                 new(px - r, py - r, pz - r),
                 new(px + r, py + r, pz + r),
                 (block, x, y, z) =>
@@ -97,13 +100,13 @@ namespace SpawnHighlight
 
                     var blockPosition = new BlockPos(x, y, z);
 
-                    var upperBlock = api.World.BlockAccessor.GetBlock(blockPosition.UpCopy());
+                    var upperBlock = blockAccessor.GetBlock(blockPosition.UpCopy());
                     if (upperBlock.Id != 0 && !upperBlock.Code.Path.StartsWith("tallgrass-")) return;
 
                     var lightLevel = api.World.BlockAccessor.GetLightLevel(blockPosition, EnumLightLevelType.OnlyBlockLight);
 
                     positions.Add(blockPosition);
-                    colors.Add(lightLevel > 7 ? config.SafeColor : config.SpawnableColor);
+                    colors.Add(lightLevel > 6 ? config.SafeColor : config.SpawnableColor);
                 });
 
             ShowHighlights(positions, colors);
